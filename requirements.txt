@@ -1,0 +1,3 @@
+# AUXIO - Emergencias Espana
+# No external dependencies required.
+# Uses only Python standard library: urllib, xml.etree, json, dataclasses.
