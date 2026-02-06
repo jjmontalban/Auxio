@@ -11,6 +11,7 @@ from typing import List
 
 from schema import Alert
 from sources import aemet
+from sources import ign
 
 # -- Severity ordering for display (most severe first) --
 SEVERITY_ORDER = {"red": 0, "orange": 1, "yellow": 2, "green": 3}
@@ -18,7 +19,7 @@ SEVERITY_ORDER = {"red": 0, "orange": 1, "yellow": 2, "green": 3}
 # -- All source modules --
 SOURCES = [
     ("AEMET", aemet),
-    # ("IGN", ign),        # futuro
+    ("IGN", ign),
     # ("DGT", dgt),        # futuro
     # ("Proteccion Civil", proteccion_civil),  # futuro
 ]
