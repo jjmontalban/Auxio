@@ -1,3 +1,119 @@
+<?php
+
+/**
+ * AUXIO - Generador de HTML y manejador de alertas
+ */
+
+class AlertGenerator {
+    private const SEVERITY_ORDER = [
+        "red" => 0,
+        "orange" => 1,
+        "yellow" => 2,
+        "green" => 3,
+    ];
+
+    private const SEVERITY_LABEL = [
+        "red" => "Rojo",
+        "orange" => "Naranja",
+        "yellow" => "Amarillo",
+        "green" => "Verde",
+    ];
+
+    private const SEVERITY_EMOJI = [
+        "red" => "🔴",
+        "orange" => "🟠",
+        "yellow" => "🟡",
+        "green" => "✅",
+    ];
+
+    /**
+     * Recopilar alertas de todas las fuentes
+     */
+    public static function collectAlerts(): array {
+        $sources = [
+            ['name' => 'AEMET', 'file' => 'AEMET.php', 'class' => 'AEMETSource'],
+            ['name' => 'IGN', 'file' => 'IGN.php', 'class' => 'IGNSource'],
+        ];
+
+        $allAlerts = [];
+
+        foreach ($sources as $source) {
+            try {
+                require_once __DIR__ . "/Sources/{$source['file']}";
+                $class = $source['class'];
+                $alerts = $class::fetch();
+                echo "[{$source['name']}] " . count($alerts) . " alertas obtenidas\n";
+                $allAlerts = array_merge($allAlerts, $alerts);
+            } catch (Exception $exc) {
+                echo "[{$source['name']}] Error: {$exc->getMessage()}\n";
+            }
+        }
+
+        // Ordenar: más severas primero
+        usort($allAlerts, function(Alert $a, Alert $b) {
+            $sevA = self::SEVERITY_ORDER[$a->severity] ?? 99;
+            $sevB = self::SEVERITY_ORDER[$b->severity] ?? 99;
+            return $sevA <=> $sevB;
+        });
+
+        return $allAlerts;
+    }
+
+    /**
+     * Renderizar sección de alertas como HTML
+     */
+    public static function renderAlertsSection(array $alerts): string {
+        if (empty($alerts)) {
+            return <<<HTML
+<p><strong>No hay alertas activas en este momento.</strong></p>
+<p>Consulta las fuentes oficiales para información en tiempo real.</p>
+HTML;
+        }
+
+        $html = "<ul>\n";
+
+        foreach ($alerts as $alert) {
+            $sev = self::SEVERITY_LABEL[$alert->severity] ?? $alert->severity;
+            $emoji = self::SEVERITY_EMOJI[$alert->severity] ?? "";
+            
+            $areaPart = '';
+            if ($alert->area) {
+                $areaPart = " - " . htmlspecialchars($alert->area, ENT_QUOTES, 'UTF-8');
+            }
+            
+            $eventPart = '';
+            if ($alert->event_type) {
+                $eventPart = " (" . htmlspecialchars($alert->event_type, ENT_QUOTES, 'UTF-8') . ")";
+            }
+            
+            $headline = htmlspecialchars(
+                $alert->headline ?: $alert->description,
+                ENT_QUOTES,
+                'UTF-8'
+            );
+
+            $html .= sprintf(
+                "<li>%s <strong>[%s]%s</strong>%s: %s</li>\n",
+                $emoji,
+                $sev,
+                $eventPart,
+                $areaPart,
+                $headline
+            );
+        }
+
+        $html .= "</ul>";
+        return $html;
+    }
+
+    /**
+     * Generar página HTML completa
+     */
+    public static function renderHTML(array $alerts): string {
+        $now = date('Y-m-d H:i') . ' UTC';
+        $alertsHtml = self::renderAlertsSection($alerts);
+
+        return <<<HTML
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -19,7 +135,7 @@ small { color: #666; }
 <h1>AUXIO - Emergencias España</h1>
 
 <p><strong>Información crítica de emergencias. Optimizada para conexiones lentas.</strong></p>
-<p><em>Última actualización: 2026-02-06 13:16 UTC</em></p>
+<p><em>Última actualización: $now</em></p>
 
 <hr>
 
@@ -45,21 +161,7 @@ small { color: #666; }
 
 <h2>ALERTAS Y AVISOS ACTIVOS</h2>
 
-<ul>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - SE CORTES DE LA FRONTERA.MA: Terremoto M2.7 en SE CORTES DE LA FRONTERA.MA</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - ATLÁNTICO-CANARIAS: Terremoto M3 en ATLÁNTICO-CANARIAS</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - NE LIBOURNE.FRA: Terremoto M2.7 en NE LIBOURNE.FRA</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - N JIMENA DE LA FRONTERA.CA: Terremoto M2.6 en N JIMENA DE LA FRONTERA.CA</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - E BOUIRA.ARG: Terremoto M3.8 en E BOUIRA.ARG</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - NE RHAFSAI.MAC: Terremoto M3.6 en NE RHAFSAI.MAC</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - NW LARUNS.FRA: Terremoto M2.7 en NW LARUNS.FRA</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - NW KSAR EL KEBIR.MAC: Terremoto M3.1 en NW KSAR EL KEBIR.MAC</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - SW CABO DE SAN VICENTE: Terremoto M3 en SW CABO DE SAN VICENTE</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - ALBORÁN OESTE: Terremoto M2.7 en ALBORÁN OESTE</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - AZORES-CABO DE SAN VICENTE: Terremoto M3.9 en AZORES-CABO DE SAN VICENTE</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - SW CABO DE SAN VICENTE: Terremoto M3.1 en SW CABO DE SAN VICENTE</li>
-<li>🟡 <strong>[Amarillo] (Terremoto)</strong> - GOLFO DE CÁDIZ: Terremoto M3.6 en GOLFO DE CÁDIZ</li>
-</ul>
+$alertsHtml
 
 <p><strong>Consulta las alertas oficiales en tiempo real:</strong></p>
 <ul>
@@ -128,3 +230,6 @@ small { color: #666; }
 
 </body>
 </html>
+HTML;
+    }
+}
