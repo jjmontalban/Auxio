@@ -32,9 +32,20 @@ try {
     // Generar HTML
     $html = AlertGenerator::renderHTML($alerts);
     
+    // Verificar permisos de escritura antes de intentar guardar
+    $outputDir = dirname($output);
+    $resolvedDir = $outputDir === '.' ? getcwd() : $outputDir;
+    
+    if (!is_writable($resolvedDir)) {
+        throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable");
+    }
+    
     // Guardar la página
-    if (file_put_contents($output, $html) === false) {
-        throw new Exception("Cannot write to {$output}");
+    $bytesWritten = file_put_contents($output, $html);
+    if ($bytesWritten === false) {
+        $error = error_get_last();
+        $errorMsg = $error ? $error['message'] : 'Unknown error';
+        throw new Exception("Cannot write to {$output}: {$errorMsg}");
     }
     
     $fileSize = filesize($output);
