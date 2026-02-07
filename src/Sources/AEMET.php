@@ -28,6 +28,9 @@ class AEMETSource {
      * Hacer solicitud HTTP GET con clave API
      */
     private static function request(string $url, string $accept = "application/json"): string {
+        // Log the requested URL for debugging
+        error_log("[AEMET] Requesting URL: {$url}");
+        
         $context = stream_context_create([
             'http' => [
                 'method' => 'GET',
@@ -41,9 +44,36 @@ class AEMETSource {
         ]);
 
         $response = @file_get_contents($url, false, $context);
+        
+        // Check if the request failed
         if ($response === false) {
-            throw new Exception("Error fetching {$url}");
+            $errorMsg = "Error fetching {$url}";
+            
+            // Include HTTP headers if available for better diagnostics
+            if (isset($http_response_header) && !empty($http_response_header)) {
+                error_log("[AEMET] Response headers: " . implode(" | ", $http_response_header));
+                $errorMsg .= " - Headers: " . implode("; ", $http_response_header);
+            }
+            
+            throw new Exception($errorMsg);
         }
+        
+        // Check HTTP status code
+        if (isset($http_response_header) && !empty($http_response_header)) {
+            $statusLine = $http_response_header[0];
+            
+            // Extract status code from status line (e.g., "HTTP/1.1 200 OK")
+            if (preg_match('/HTTP\/\d\.\d\s+(\d+)/', $statusLine, $matches)) {
+                $statusCode = (int)$matches[1];
+                
+                // Check if status code is not in 2xx range
+                if ($statusCode < 200 || $statusCode >= 300) {
+                    error_log("[AEMET] Non-2xx response: {$statusLine}");
+                    throw new Exception("Non-2xx response ({$statusLine}) from {$url}");
+                }
+            }
+        }
+        
         return $response;
     }
 
@@ -61,9 +91,28 @@ class AEMETSource {
     }
 
     /**
+     * Verificar si el contenido es gzip válido
+     */
+    private static function isGzipData(string $data): bool {
+        // Check gzip magic number (1f 8b)
+        if (strlen($data) < 2) {
+            return false;
+        }
+        
+        $header = substr($data, 0, 2);
+        return $header === "\x1f\x8b";
+    }
+
+    /**
      * Extraer archivos XML de un archivo tar.gz
      */
     private static function extractTarGz(string $data): array {
+        // Validate that data is actually gzip format
+        if (!self::isGzipData($data)) {
+            error_log("[AEMET] Data is not in gzip format. First 200 chars: " . substr($data, 0, 200));
+            throw new Exception("Response is not in gzip format. Received: " . substr($data, 0, 100));
+        }
+        
         $xmlFiles = [];
         $tmpFile = tempnam(sys_get_temp_dir(), 'aemet_');
         $tmpDir = $tmpFile . '_dir';
