@@ -37,10 +37,11 @@ class IGNSource {
         'Z' => 'Zaragoza', 'ZA' => 'Zamora',
     ];
 
-    /** Códigos de país/región usados por IGN */
-    private const COUNTRY_CODES = [
-        'MAC' => 'Marruecos', 'ARG' => 'Argelia', 'POR' => 'Portugal',
-        'FRA' => 'Francia', 'AND' => 'Andorra',
+    /** Direcciones cardinales a texto completo */
+    private const DIRECTION_NAMES = [
+        'N' => 'Norte', 'S' => 'Sur', 'E' => 'Este', 'W' => 'Oeste',
+        'NW' => 'Noroeste', 'NE' => 'Noreste',
+        'SW' => 'Suroeste', 'SE' => 'Sureste',
     ];
 
     /**
@@ -72,37 +73,49 @@ class IGNSource {
     }
 
     /**
+     * Comprobar si la región es española (tiene código de provincia conocido)
+     */
+    private static function isSpanishRegion(string $raw): bool {
+        $body = $raw;
+        if (preg_match('/^(NW|NE|SW|SE|N|S|E|W)\s+(.+)$/u', $raw, $m)) {
+            $body = $m[2];
+        }
+        // Código tras el punto → español solo si es provincia conocida
+        if (preg_match('/\.([A-Z]{1,3})$/u', $body, $m)) {
+            return isset(self::PROVINCE_CODES[$m[1]]);
+        }
+        // Formato con guión (ATLÁNTICO-PORTUGAL) → no español
+        if (strpos($body, '-') !== false) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Formatear región del IGN a texto legible
      *
-     * Entrada IGN:  "SW EL ARBA DE TAOURIRT.MAC"
-     * Salida:        "SW de El Arba de Taourirt, Marruecos"
+     * Entrada IGN:  "S GAUCÍN.MA"
+     * Salida:        "Sur de Gaucín, Málaga"
      */
     private static function formatRegion(string $raw): string {
         $direction = '';
         $body = $raw;
 
-        // Extraer prefijo de dirección (NW, SE, S, E, etc.)
+        // Extraer prefijo de dirección y expandir a nombre completo
         if (preg_match('/^(NW|NE|SW|SE|N|S|E|W)\s+(.+)$/u', $raw, $m)) {
-            $direction = $m[1] . ' de ';
+            $dirName = self::DIRECTION_NAMES[$m[1]] ?? $m[1];
+            $direction = $dirName . ' de ';
             $body = $m[2];
         }
 
         $location = $body;
         $suffix = '';
 
-        // Separar código tras el punto (.MA, .CA, .MAC, etc.)
+        // Separar código de provincia tras el punto (.MA, .CA, etc.)
         if (preg_match('/^(.+)\.([A-Z]{1,3})$/u', $body, $m)) {
             $location = $m[1];
             $code = $m[2];
-            $expanded = self::PROVINCE_CODES[$code]
-                ?? self::COUNTRY_CODES[$code]
-                ?? $code;
-            $suffix = ', ' . $expanded;
-        } elseif (strpos($body, '-') !== false) {
-            // Formato región-país: ATLÁNTICO-PORTUGAL
-            $parts = explode('-', $body, 2);
-            $location = $parts[0];
-            $suffix = ', ' . self::toTitleCase($parts[1]);
+            $suffix = ', ' . (self::PROVINCE_CODES[$code] ?? $code);
         }
 
         return $direction . self::toTitleCase($location) . $suffix;
@@ -186,6 +199,11 @@ class IGNSource {
 
             // Extraer región
             $region = self::extractRegion($description);
+
+            // Solo alertas de España
+            if ($region && !self::isSpanishRegion($region)) {
+                continue;
+            }
 
             // Extraer fecha
             $onset = self::extractDate($description);
