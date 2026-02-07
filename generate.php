@@ -24,6 +24,7 @@ if (file_exists(__DIR__ . '/.env')) {
 
 // Archivo de salida (default: index.html)
 $output = $argc > 1 ? $argv[1] : 'index.html';
+$originalOutput = $output; // Store original for error messages
 
 try {
     // Recopilar alertas
@@ -51,19 +52,28 @@ try {
         $resolvedDir = $outputDir; // Fallback al path original
     }
     
+    // Verificar permisos de escritura ANTES de intentar escribir
+    // Solo aplicar fallback si el output especifica un directorio explícito (no solo un nombre de archivo)
+    if ($outputDir !== '.' && !is_writable($resolvedDir)) {
+        // Intentar escribir en el directorio actual como fallback
+        $fallbackOutput = basename($output);
+        $currentDir = getcwd();
+        
+        if (is_writable($currentDir)) {
+            echo "[warning] Directory '{$resolvedDir}' is not writable, using current directory: {$currentDir}\n";
+            $output = $fallbackOutput;
+        } else {
+            throw new Exception("Cannot write to {$originalOutput}: directory '{$resolvedDir}' is not writable. Please ensure the directory has write permissions (e.g., chmod 755 for owner-only or chmod 775 for group access) or run the script from a writable directory.");
+        }
+    }
+    
     // Intentar guardar la página
     $bytesWritten = @file_put_contents($output, $html);
     if ($bytesWritten === false) {
         // Capturar el error inmediatamente
         $error = error_get_last();
         $errorMsg = $error ? $error['message'] : 'Unknown error';
-        
-        // Usar el directorio resuelto previamente
-        if (!is_writable($resolvedDir)) {
-            throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable");
-        }
-        
-        throw new Exception("Cannot write to {$output}: {$errorMsg}");
+        throw new Exception("Cannot write to {$originalOutput}: {$errorMsg}");
     }
     
     $fileSize = filesize($output);
