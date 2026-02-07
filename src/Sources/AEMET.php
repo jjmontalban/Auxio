@@ -29,6 +29,7 @@ class AEMETSource {
      */
     private static function request(string $url, string $accept = "application/json"): string {
         // Log the requested URL for debugging
+        // Note: Safe to log URL as API key is sent in headers, not URL parameters
         error_log("[AEMET] Requesting URL: {$url}");
         
         $context = stream_context_create([
@@ -110,6 +111,8 @@ class AEMETSource {
         // Validate that data is actually gzip format
         if (!self::isGzipData($data)) {
             $preview = substr($data, 0, 200);
+            // Note: Logging response preview for diagnostics. Data is from AEMET public API.
+            // If response could contain sensitive data, implement sanitization here.
             error_log("[AEMET] Data is not in gzip format. First 200 chars: " . $preview);
             throw new Exception("Response is not in gzip format. Received: " . $preview);
         }
