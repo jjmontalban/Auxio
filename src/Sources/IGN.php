@@ -73,7 +73,10 @@ class IGNSource {
     }
 
     /**
-     * Comprobar si la región es española (tiene código de provincia conocido)
+     * Comprobar si la región es española o zona marítima monitoreada por IGN
+     *
+     * Descarta solo alertas con código de país tras punto (.MAC, .ARG, etc.)
+     * Mantiene zonas costeras/marítimas con guión (ATLÁNTICO-GALICIA, etc.)
      */
     private static function isSpanishRegion(string $raw): bool {
         $body = $raw;
@@ -83,10 +86,6 @@ class IGNSource {
         // Código tras el punto → español solo si es provincia conocida
         if (preg_match('/\.([A-Z]{1,3})$/u', $body, $m)) {
             return isset(self::PROVINCE_CODES[$m[1]]);
-        }
-        // Formato con guión (ATLÁNTICO-PORTUGAL) → no español
-        if (strpos($body, '-') !== false) {
-            return false;
         }
         return true;
     }
@@ -116,6 +115,11 @@ class IGNSource {
             $location = $m[1];
             $code = $m[2];
             $suffix = ', ' . (self::PROVINCE_CODES[$code] ?? $code);
+        } elseif (strpos($body, '-') !== false) {
+            // Zona marítima: ATLÁNTICO-GALICIA → Atlántico-Galicia
+            $parts = explode('-', $body);
+            $location = implode('-', array_map([self::class, 'toTitleCase'], $parts));
+            return $direction . $location;
         }
 
         return $direction . self::toTitleCase($location) . $suffix;
