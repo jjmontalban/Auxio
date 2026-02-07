@@ -28,6 +28,8 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
             git fetch origin prod
             git reset --hard origin/prod
+            # Ensure the directory has write permissions for the current user
+            chmod u+w .
             php generate.php
             echo "Deployment completed at $(date)"
           ENDSSH
