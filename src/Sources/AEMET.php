@@ -54,7 +54,8 @@ class AEMETSource {
             if (isset($http_response_header) && !empty($http_response_header)) {
                 // Filter out potentially sensitive headers before logging
                 $safeHeaders = array_filter($http_response_header, function($header) {
-                    $lowerHeader = strtolower($header);
+                    $trimmedHeader = trim($header);
+                    $lowerHeader = strtolower($trimmedHeader);
                     // Skip sensitive headers
                     return !preg_match('/^(authorization|set-cookie|cookie|x-api-key|api[_-]?key):/i', $lowerHeader);
                 });
@@ -72,7 +73,8 @@ class AEMETSource {
             $statusLine = $http_response_header[0];
             
             // Extract status code from status line (e.g., "HTTP/1.1 200 OK")
-            if (preg_match('/HTTP\/\d\.\d\s+(\d+)/', $statusLine, $matches)) {
+            // Using single space per RFC 7230
+            if (preg_match('/HTTP\/\d\.\d\s(\d+)/', $statusLine, $matches)) {
                 $statusCode = (int)$matches[1];
                 
                 // Check if status code is not in 2xx range
@@ -118,12 +120,13 @@ class AEMETSource {
     private static function extractTarGz(string $data): array {
         // Validate that data is actually gzip format
         if (!self::isGzipData($data)) {
-            // Use mb_substr for safe UTF-8 handling to avoid truncating multi-byte characters
-            $preview = mb_substr($data, 0, 200, 'UTF-8');
+            // Use substr for potentially binary data (safer than mb_substr for non-text data)
+            $preview = substr($data, 0, 200);
             // Note: Logging response preview for diagnostics. Data is from AEMET public API.
             // If response could contain sensitive data, implement sanitization here.
             error_log("[AEMET] Data is not in gzip format. First 200 chars: " . $preview);
-            throw new Exception("Response is not in gzip format. Received: " . $preview);
+            // Use generic error message in exception to avoid exposing potentially sensitive API error details
+            throw new Exception("Response is not in gzip format (see error log for details)");
         }
         
         $xmlFiles = [];
