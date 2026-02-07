@@ -109,8 +109,9 @@ class AEMETSource {
     private static function extractTarGz(string $data): array {
         // Validate that data is actually gzip format
         if (!self::isGzipData($data)) {
-            error_log("[AEMET] Data is not in gzip format. First 200 chars: " . substr($data, 0, 200));
-            throw new Exception("Response is not in gzip format. Received: " . substr($data, 0, 100));
+            $preview = substr($data, 0, 200);
+            error_log("[AEMET] Data is not in gzip format. First 200 chars: " . $preview);
+            throw new Exception("Response is not in gzip format. Received: " . $preview);
         }
         
         $xmlFiles = [];
