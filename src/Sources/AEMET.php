@@ -37,13 +37,27 @@ class AEMETSource {
                     "User-Agent: AUXIO/1.0",
                 ]),
                 'timeout' => 30,
+                'ignore_errors' => true, // Allow capturing HTTP error responses
             ]
         ]);
 
         $response = @file_get_contents($url, false, $context);
         if ($response === false) {
-            throw new Exception("Error fetching {$url}");
+            $error = error_get_last();
+            throw new Exception("Error fetching {$url}: " . ($error['message'] ?? 'Unknown error'));
         }
+        
+        // Verificar código de respuesta HTTP
+        if (isset($http_response_header)) {
+            $statusLine = $http_response_header[0] ?? '';
+            preg_match('/HTTP\/\d\.\d\s+(\d+)/', $statusLine, $matches);
+            $statusCode = $matches[1] ?? 0;
+            
+            if ($statusCode >= 400) {
+                throw new Exception("HTTP {$statusCode} error for {$url}");
+            }
+        }
+        
         return $response;
     }
 
@@ -69,6 +83,11 @@ class AEMETSource {
         $tmpDir = $tmpFile . '_dir';
 
         try {
+            // Validar que el archivo es gzip antes de intentar extraer
+            if (strlen($data) < 2 || substr($data, 0, 2) !== "\x1f\x8b") {
+                throw new Exception("Data is not in gzip format");
+            }
+
             file_put_contents($tmpFile, $data);
             mkdir($tmpDir, 0755, true);
 
@@ -268,13 +287,44 @@ class AEMETSource {
             $datosUrl = self::getDataUrl('esp');
             $rawData = self::request($datosUrl, '*/*');
 
-            // Detectar si es XML directo o tar.gz
+            // Validar que tenemos datos
+            if (empty($rawData)) {
+                echo "[aemet] Empty response from API.\n";
+                return [];
+            }
+
+            // Detectar formato de respuesta
             $trimmed = ltrim($rawData);
+            
+            // 1. Verificar si es JSON (posible error del API)
+            if (str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[')) {
+                $jsonData = json_decode($rawData, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($jsonData)) {
+                    // Es una respuesta JSON, probablemente un error
+                    $errorMsg = $jsonData['descripcion'] ?? $jsonData['mensaje'] ?? 'Unknown JSON response';
+                    echo "[aemet] API returned JSON response: {$errorMsg}\n";
+                    return [];
+                }
+            }
+            
+            // 2. Verificar si es XML directo
             if (str_starts_with($trimmed, '<?xml') || str_starts_with($trimmed, '<')) {
                 return self::parseCAP($rawData);
             }
 
-            // Es un archivo tar.gz: extraer los XMLs individuales
+            // 3. Verificar si es realmente un archivo gzip usando magic bytes
+            $magicBytes = substr($rawData, 0, 2);
+            if ($magicBytes !== "\x1f\x8b") {
+                // No es un archivo gzip válido
+                echo "[aemet] Response is not in gzip format. First bytes: " . bin2hex($magicBytes) . "\n";
+                // Intentar mostrar más información si parece ser texto
+                if (ctype_print(substr($rawData, 0, 100))) {
+                    echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
+                }
+                return [];
+            }
+
+            // 4. Es un archivo tar.gz: extraer los XMLs individuales
             $xmlFiles = self::extractTarGz($rawData);
 
             if (empty($xmlFiles)) {
