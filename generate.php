@@ -32,19 +32,29 @@ try {
     // Generar HTML
     $html = AlertGenerator::renderHTML($alerts);
     
-    // Verificar permisos de escritura antes de intentar guardar
+    // Asegurar que el directorio existe
     $outputDir = dirname($output);
-    $resolvedDir = $outputDir === '.' ? getcwd() : $outputDir;
-    
-    if (!is_writable($resolvedDir)) {
-        throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable");
+    if ($outputDir !== '.' && !is_dir($outputDir)) {
+        if (!@mkdir($outputDir, 0755, true)) {
+            $error = error_get_last();
+            $errorMsg = $error ? $error['message'] : 'Unknown error';
+            throw new Exception("Cannot create directory {$outputDir}: {$errorMsg}");
+        }
     }
     
-    // Guardar la página
-    $bytesWritten = file_put_contents($output, $html);
+    // Intentar guardar la página
+    $bytesWritten = @file_put_contents($output, $html);
     if ($bytesWritten === false) {
         $error = error_get_last();
         $errorMsg = $error ? $error['message'] : 'Unknown error';
+        
+        // Intentar determinar el directorio para un mensaje de error más útil
+        $resolvedDir = $outputDir === '.' ? getcwd() : realpath($outputDir);
+        
+        if ($resolvedDir && !is_writable($resolvedDir)) {
+            throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable");
+        }
+        
         throw new Exception("Cannot write to {$output}: {$errorMsg}");
     }
     
