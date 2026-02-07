@@ -317,8 +317,16 @@ class AEMETSource {
             if ($magicBytes !== "\x1f\x8b") {
                 // No es un archivo gzip válido
                 echo "[aemet] Response is not in gzip format. First bytes: " . bin2hex($magicBytes) . "\n";
-                // Intentar mostrar más información si parece ser texto
-                if (ctype_print(substr($rawData, 0, 100))) {
+                
+                // Manejar respuestas específicas de la API
+                if (str_starts_with($rawData, 'Z_')) {
+                    echo "[aemet] API returned a non-compressed response (possibly no data available)\n";
+                    // Intentar mostrar más información si parece ser texto
+                    if (ctype_print(substr($rawData, 0, 100))) {
+                        echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
+                    }
+                } else if (ctype_print(substr($rawData, 0, 100))) {
+                    // Intentar mostrar más información si parece ser texto
                     echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
                 }
                 return [];
