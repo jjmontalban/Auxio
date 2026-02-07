@@ -73,18 +73,7 @@ HTML;
         $html = "<ul>\n";
 
         foreach ($alerts as $alert) {
-            $sev = self::SEVERITY_LABEL[$alert->severity] ?? $alert->severity;
             $emoji = self::SEVERITY_EMOJI[$alert->severity] ?? "";
-            
-            $areaPart = '';
-            if ($alert->area) {
-                $areaPart = " - " . htmlspecialchars($alert->area, ENT_QUOTES, 'UTF-8');
-            }
-            
-            $eventPart = '';
-            if ($alert->event_type) {
-                $eventPart = " (" . htmlspecialchars($alert->event_type, ENT_QUOTES, 'UTF-8') . ")";
-            }
             
             $headline = htmlspecialchars(
                 $alert->headline ?: $alert->description,
@@ -93,11 +82,8 @@ HTML;
             );
 
             $html .= sprintf(
-                "<li>%s <strong>[%s]%s</strong>%s: %s</li>\n",
+                "<li>%s <strong>%s</strong></li>\n",
                 $emoji,
-                $sev,
-                $eventPart,
-                $areaPart,
                 $headline
             );
         }
