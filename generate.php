@@ -63,7 +63,7 @@ try {
             echo "[warning] Directory '{$resolvedDir}' is not writable, using current directory: {$currentDir}\n";
             $output = $fallbackOutput;
         } else {
-            throw new Exception("Cannot write to {$originalOutput}: directory '{$resolvedDir}' is not writable. Please ensure the directory has write permissions (chmod 755) or run the script from a writable directory.");
+            throw new Exception("Cannot write to {$originalOutput}: directory '{$resolvedDir}' is not writable. Please ensure the directory has write permissions (e.g., chmod 755 for owner-only or chmod 775 for group access) or run the script from a writable directory.");
         }
     }
     

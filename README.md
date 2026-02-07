@@ -238,7 +238,8 @@ $sources = [
 
 ### Errores de permisos al escribir archivos
 - Si el directorio de destino no tiene permisos de escritura, el script intentará escribir en el directorio actual
-- Asegúrate de que el usuario que ejecuta el script tenga permisos: `chmod 755 /ruta/destino`
+- Asegúrate de que el usuario que ejecuta el script tenga permisos de escritura en el directorio: `chmod 755 /ruta/destino` (para propietario) o `chmod 775 /ruta/destino` (para grupo)
+- Si el script se ejecuta con un usuario diferente (ej: servidor web), puede que necesites ajustar el propietario: `chown usuario:grupo /ruta/destino`
 - Alternativamente, ejecuta el script desde un directorio con permisos de escritura
 
 ### Errores en parsing XML
