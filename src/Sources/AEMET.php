@@ -308,7 +308,8 @@ class AEMETSource {
             }
             
             // 2. Verificar respuesta no comprimida de AEMET (sin datos disponibles)
-            // La API devuelve respuestas como "Z_CAP_..." cuando no hay datos
+            // La API de AEMET devuelve respuestas que empiezan con "Z_" (ej: "Z_CAP_C_AEMET...")
+            // cuando no hay datos de avisos disponibles. Estas respuestas no son archivos tar.gz.
             if (str_starts_with($rawData, 'Z_')) {
                 echo "[aemet] API returned a non-compressed response (no data available)\n";
                 return [];

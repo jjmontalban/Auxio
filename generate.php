@@ -35,7 +35,10 @@ try {
     // Asegurar que el directorio existe
     $outputDir = dirname($output);
     if ($outputDir !== '.' && !is_dir($outputDir)) {
-        if (!@mkdir($outputDir, 0755, true)) {
+        // Intentar crear el directorio con permisos 0755
+        $created = @mkdir($outputDir, 0755, true);
+        if (!$created && !is_dir($outputDir)) {
+            // Si mkdir falló y el directorio aún no existe
             $error = error_get_last();
             $errorMsg = $error ? $error['message'] : 'Unknown error';
             throw new Exception("Cannot create directory {$outputDir}: {$errorMsg}");
@@ -45,13 +48,19 @@ try {
     // Intentar guardar la página
     $bytesWritten = @file_put_contents($output, $html);
     if ($bytesWritten === false) {
+        // Capturar el error inmediatamente
         $error = error_get_last();
         $errorMsg = $error ? $error['message'] : 'Unknown error';
         
         // Intentar determinar el directorio para un mensaje de error más útil
         $resolvedDir = $outputDir === '.' ? getcwd() : realpath($outputDir);
         
-        if ($resolvedDir && !is_writable($resolvedDir)) {
+        // Si el directorio no se puede resolver, usar el path original
+        if ($resolvedDir === false) {
+            $resolvedDir = $outputDir;
+        }
+        
+        if (!is_writable($resolvedDir)) {
             throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable");
         }
         
