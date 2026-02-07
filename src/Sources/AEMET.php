@@ -73,8 +73,8 @@ class AEMETSource {
             $statusLine = $http_response_header[0];
             
             // Extract status code from status line (e.g., "HTTP/1.1 200 OK")
-            // Using single space per RFC 7230
-            if (preg_match('/HTTP\/\d\.\d\s(\d+)/', $statusLine, $matches)) {
+            // Using literal space per RFC 7230
+            if (preg_match('/HTTP\/\d\.\d (\d+)/', $statusLine, $matches)) {
                 $statusCode = (int)$matches[1];
                 
                 // Check if status code is not in 2xx range
