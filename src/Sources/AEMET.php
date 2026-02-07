@@ -52,8 +52,16 @@ class AEMETSource {
             
             // Include HTTP headers if available for better diagnostics
             if (isset($http_response_header) && !empty($http_response_header)) {
-                error_log("[AEMET] Response headers: " . implode(" | ", $http_response_header));
-                $errorMsg .= " - Headers: " . implode("; ", $http_response_header);
+                // Filter out potentially sensitive headers before logging
+                $safeHeaders = array_filter($http_response_header, function($header) {
+                    $lowerHeader = strtolower($header);
+                    // Skip sensitive headers
+                    return !preg_match('/^(authorization|set-cookie|cookie|x-api-key|api[_-]?key):/i', $lowerHeader);
+                });
+                
+                $headersStr = implode(" | ", $safeHeaders);
+                error_log("[AEMET] Response headers: " . $headersStr);
+                $errorMsg .= " - Headers: " . implode("; ", $safeHeaders);
             }
             
             throw new Exception($errorMsg);
