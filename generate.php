@@ -51,18 +51,26 @@ try {
         $resolvedDir = $outputDir; // Fallback al path original
     }
     
+    // Verificar permisos de escritura ANTES de intentar escribir
+    if (!is_writable($resolvedDir)) {
+        // Intentar escribir en el directorio actual como fallback
+        $fallbackOutput = basename($output);
+        $currentDir = getcwd();
+        
+        if (is_writable($currentDir)) {
+            echo "[warning] Directory '{$resolvedDir}' is not writable, using current directory: {$currentDir}\n";
+            $output = $fallbackOutput;
+        } else {
+            throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable. Please ensure the directory has write permissions (chmod 755) or run the script from a writable directory.");
+        }
+    }
+    
     // Intentar guardar la página
     $bytesWritten = @file_put_contents($output, $html);
     if ($bytesWritten === false) {
         // Capturar el error inmediatamente
         $error = error_get_last();
         $errorMsg = $error ? $error['message'] : 'Unknown error';
-        
-        // Usar el directorio resuelto previamente
-        if (!is_writable($resolvedDir)) {
-            throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable");
-        }
-        
         throw new Exception("Cannot write to {$output}: {$errorMsg}");
     }
     
