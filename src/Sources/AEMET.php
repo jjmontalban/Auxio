@@ -307,32 +307,32 @@ class AEMETSource {
                 }
             }
             
-            // 2. Verificar si es XML directo
+            // 2. Verificar respuesta no comprimida de AEMET (sin datos disponibles)
+            // La API devuelve respuestas como "Z_CAP_..." cuando no hay datos
+            if (str_starts_with($rawData, 'Z_')) {
+                echo "[aemet] API returned a non-compressed response (no data available)\n";
+                return [];
+            }
+            
+            // 3. Verificar si es XML directo
             if (str_starts_with($trimmed, '<?xml') || str_starts_with($trimmed, '<')) {
                 return self::parseCAP($rawData);
             }
 
-            // 3. Verificar si es realmente un archivo gzip usando magic bytes
+            // 4. Verificar si es realmente un archivo gzip usando magic bytes
             $magicBytes = substr($rawData, 0, 2);
             if ($magicBytes !== "\x1f\x8b") {
                 // No es un archivo gzip válido
                 echo "[aemet] Response is not in gzip format. First bytes: " . bin2hex($magicBytes) . "\n";
                 
-                // Manejar respuestas específicas de la API
-                if (str_starts_with($rawData, 'Z_')) {
-                    echo "[aemet] API returned a non-compressed response (possibly no data available)\n";
-                    // Intentar mostrar más información si parece ser texto
-                    if (ctype_print(substr($rawData, 0, 100))) {
-                        echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
-                    }
-                } else if (ctype_print(substr($rawData, 0, 100))) {
-                    // Intentar mostrar más información si parece ser texto
+                // Intentar mostrar más información si parece ser texto
+                if (ctype_print(substr($rawData, 0, 100))) {
                     echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
                 }
                 return [];
             }
 
-            // 4. Es un archivo tar.gz: extraer los XMLs individuales
+            // 5. Es un archivo tar.gz: extraer los XMLs individuales
             $xmlFiles = self::extractTarGz($rawData);
 
             if (empty($xmlFiles)) {
