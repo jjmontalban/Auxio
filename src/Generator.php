@@ -150,6 +150,20 @@ small { color: #666; }
 
 <hr>
 
+<h2>ALERTAS Y AVISOS ACTIVOS</h2>
+
+$alertsHtml
+
+<p><strong>Consulta las alertas oficiales en tiempo real:</strong></p>
+<ul>
+<li><strong>AEMET</strong> - Alertas meteorológicas: <a href="https://www.aemet.es/es/eltiempo/prediccion/avisos">aemet.es/avisos</a></li>
+<li><strong>Protección Civil</strong>: <a href="https://www.proteccioncivil.es">proteccioncivil.es</a></li>
+<li><strong>DGT</strong> - Estado de carreteras: <a href="https://infocar.dgt.es/etraffic/">infocar.dgt.es</a></li>
+<li><strong>IGN</strong> - Actividad sísmica: <a href="https://www.ign.es/web/ign/portal/sis-catalogo-terremotos">ign.es/terremotos</a></li>
+</ul>
+
+<hr>
+
 <h2>LLAMADAS DE EMERGENCIA</h2>
 
 <h3>Emergencias Generales</h3>
@@ -166,20 +180,6 @@ small { color: #666; }
 <li><strong>016</strong> - Violencia de Género (no deja rastro en factura) - <a href="tel:016">Llamar</a></li>
 <li><strong>024</strong> - Atención a la Conducta Suicida - <a href="tel:024">Llamar</a></li>
 <li><strong>915 620 420</strong> - Servicio de Información Toxicológica - <a href="tel:915620420">Llamar</a></li>
-</ul>
-
-<hr>
-
-<h2>ALERTAS Y AVISOS ACTIVOS</h2>
-
-$alertsHtml
-
-<p><strong>Consulta las alertas oficiales en tiempo real:</strong></p>
-<ul>
-<li><strong>AEMET</strong> - Alertas meteorológicas: <a href="https://www.aemet.es/es/eltiempo/prediccion/avisos">aemet.es/avisos</a></li>
-<li><strong>Protección Civil</strong>: <a href="https://www.proteccioncivil.es">proteccioncivil.es</a></li>
-<li><strong>DGT</strong> - Estado de carreteras: <a href="https://infocar.dgt.es/etraffic/">infocar.dgt.es</a></li>
-<li><strong>IGN</strong> - Actividad sísmica: <a href="https://www.ign.es/web/ign/portal/sis-catalogo-terremotos">ign.es/terremotos</a></li>
 </ul>
 
 <hr>
