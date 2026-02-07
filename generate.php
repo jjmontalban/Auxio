@@ -34,7 +34,7 @@ try {
     
     // Verificar permisos de escritura antes de intentar guardar
     $outputDir = dirname($output);
-    $resolvedDir = $outputDir === '.' ? getcwd() : $outputDir;
+    $resolvedDir = ($outputDir === '' || $outputDir === '.') ? getcwd() : (realpath($outputDir) ?: $outputDir);
     
     if (!is_writable($resolvedDir)) {
         throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable");

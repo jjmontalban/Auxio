@@ -321,12 +321,10 @@ class AEMETSource {
                 // Manejar respuestas específicas de la API
                 if (str_starts_with($rawData, 'Z_')) {
                     echo "[aemet] API returned a non-compressed response (possibly no data available)\n";
-                    // Intentar mostrar más información si parece ser texto
-                    if (ctype_print(substr($rawData, 0, 100))) {
-                        echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
-                    }
-                } else if (ctype_print(substr($rawData, 0, 100))) {
-                    // Intentar mostrar más información si parece ser texto
+                }
+                
+                // Intentar mostrar más información si parece ser texto
+                if (ctype_print(substr($rawData, 0, 100))) {
                     echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
                 }
                 return [];
