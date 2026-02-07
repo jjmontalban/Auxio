@@ -53,11 +53,60 @@ class AEMETSource {
     private static function getDataUrl(string $area = "esp"): string {
         $url = self::BASE_URL . str_replace("{area}", $area, self::ENDPOINT);
         $body = json_decode(self::request($url), true);
-        
+
         if (!isset($body['datos'])) {
             throw new Exception("AEMET response missing 'datos' field");
         }
         return $body['datos'];
+    }
+
+    /**
+     * Extraer archivos XML de un archivo tar.gz
+     */
+    private static function extractTarGz(string $data): array {
+        $xmlFiles = [];
+        $tmpFile = tempnam(sys_get_temp_dir(), 'aemet_');
+        $tmpDir = $tmpFile . '_dir';
+
+        try {
+            file_put_contents($tmpFile, $data);
+            mkdir($tmpDir, 0755, true);
+
+            $cmd = sprintf(
+                'tar -xzf %s -C %s 2>&1',
+                escapeshellarg($tmpFile),
+                escapeshellarg($tmpDir)
+            );
+            exec($cmd, $output, $returnCode);
+
+            if ($returnCode !== 0) {
+                throw new Exception("Failed to extract tar.gz: " . implode(" ", $output));
+            }
+
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($tmpDir, RecursiveDirectoryIterator::SKIP_DOTS)
+            );
+
+            foreach ($iterator as $file) {
+                if ($file->isFile() && strtolower($file->getExtension()) === 'xml') {
+                    $xmlFiles[] = file_get_contents($file->getPathname());
+                }
+            }
+        } finally {
+            @unlink($tmpFile);
+            if (is_dir($tmpDir)) {
+                $delIterator = new RecursiveIteratorIterator(
+                    new RecursiveDirectoryIterator($tmpDir, RecursiveDirectoryIterator::SKIP_DOTS),
+                    RecursiveIteratorIterator::CHILD_FIRST
+                );
+                foreach ($delIterator as $item) {
+                    $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+                }
+                @rmdir($tmpDir);
+            }
+        }
+
+        return $xmlFiles;
     }
 
     /**
@@ -105,18 +154,23 @@ class AEMETSource {
         }
 
         $alertElements = [];
-        
-        // Manejo de namespace
-        $children = $root->children(self::CAP_NS);
-        if (isset($children->alert)) {
-            foreach ($children->alert as $alert) {
-                $alertElements[] = $alert;
+
+        // Si la raíz es <alert>, procesarla directamente
+        if ($root->getName() === 'alert') {
+            $alertElements[] = $root;
+        } else {
+            // Buscar elementos <alert> hijos (con y sin namespace)
+            $children = $root->children(self::CAP_NS);
+            if (isset($children->alert)) {
+                foreach ($children->alert as $alert) {
+                    $alertElements[] = $alert;
+                }
             }
-        }
-        
-        if (isset($root->alert)) {
-            foreach ($root->alert as $alert) {
-                $alertElements[] = $alert;
+
+            if (empty($alertElements) && isset($root->alert)) {
+                foreach ($root->alert as $alert) {
+                    $alertElements[] = $alert;
+                }
             }
         }
 
@@ -130,8 +184,8 @@ class AEMETSource {
                     $infoElements[] = $info;
                 }
             }
-            
-            if (isset($alertEl->info)) {
+
+            if (empty($infoElements) && isset($alertEl->info)) {
                 foreach ($alertEl->info as $info) {
                     $infoElements[] = $info;
                 }
@@ -166,8 +220,8 @@ class AEMETSource {
                     }
                 }
             }
-            
-            if (isset($info->area)) {
+
+            if (empty($areaParts) && isset($info->area)) {
                 foreach ($info->area as $area) {
                     $areaDesc = self::getText($area, 'areaDesc');
                     if ($areaDesc) {
@@ -199,6 +253,9 @@ class AEMETSource {
 
     /**
      * Fetch actualizado: obtener alertas de AEMET
+     *
+     * El endpoint datos devuelve un archivo tar.gz con múltiples
+     * ficheros CAP XML individuales (uno por aviso/zona).
      */
     public static function fetch(): array {
         $apiKey = self::getApiKey();
@@ -209,8 +266,34 @@ class AEMETSource {
 
         try {
             $datosUrl = self::getDataUrl('esp');
-            $xmlBytes = self::request($datosUrl, 'application/xml');
-            return self::parseCAP($xmlBytes);
+            $rawData = self::request($datosUrl, '*/*');
+
+            // Detectar si es XML directo o tar.gz
+            $trimmed = ltrim($rawData);
+            if (str_starts_with($trimmed, '<?xml') || str_starts_with($trimmed, '<')) {
+                return self::parseCAP($rawData);
+            }
+
+            // Es un archivo tar.gz: extraer los XMLs individuales
+            $xmlFiles = self::extractTarGz($rawData);
+
+            if (empty($xmlFiles)) {
+                echo "[aemet] No XML files found in archive.\n";
+                return [];
+            }
+
+            $allAlerts = [];
+            foreach ($xmlFiles as $xmlContent) {
+                try {
+                    $alerts = self::parseCAP($xmlContent);
+                    $allAlerts = array_merge($allAlerts, $alerts);
+                } catch (Exception $e) {
+                    // Saltar archivos XML inválidos
+                    continue;
+                }
+            }
+
+            return $allAlerts;
         } catch (Exception $exc) {
             echo "[aemet] Error fetching alerts: {$exc->getMessage()}\n";
             return [];
