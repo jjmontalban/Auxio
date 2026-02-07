@@ -55,9 +55,25 @@ try {
                 $alerts = array_filter($alerts, fn(Alert $a) => $a->source === $source);
             }
             
+            // Agrupar por fuente si se solicita
+            $grouped = getParam('grouped');
+            if ($grouped) {
+                $bySource = AlertGenerator::groupBySource($alerts);
+                $groupedData = [];
+                foreach ($bySource as $src => $srcAlerts) {
+                    $groupedData[$src] = array_map(fn(Alert $a) => $a->toArray(), $srcAlerts);
+                }
+                returnJSON([
+                    'success' => true,
+                    'timestamp' => date('Y-m-d H:i:s') . ' UTC',
+                    'count' => count($alerts),
+                    'grouped' => $groupedData,
+                ]);
+            }
+
             // Convertir a arrays
             $alertData = array_map(fn(Alert $a) => $a->toArray(), $alerts);
-            
+
             returnJSON([
                 'success' => true,
                 'timestamp' => date('Y-m-d H:i:s') . ' UTC',

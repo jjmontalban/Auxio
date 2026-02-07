@@ -26,6 +26,11 @@ class AlertGenerator {
         "green" => "✅",
     ];
 
+    private const SOURCE_LABELS = [
+        "ign" => "Sismología (IGN)",
+        "aemet" => "Meteorología (AEMET)",
+    ];
+
     /**
      * Recopilar alertas de todas las fuentes
      */
@@ -60,7 +65,18 @@ class AlertGenerator {
     }
 
     /**
-     * Renderizar sección de alertas como HTML
+     * Agrupar alertas por fuente
+     */
+    public static function groupBySource(array $alerts): array {
+        $grouped = [];
+        foreach ($alerts as $alert) {
+            $grouped[$alert->source][] = $alert;
+        }
+        return $grouped;
+    }
+
+    /**
+     * Renderizar sección de alertas como HTML, agrupadas por fuente
      */
     public static function renderAlertsSection(array $alerts): string {
         if (empty($alerts)) {
@@ -70,25 +86,34 @@ class AlertGenerator {
 HTML;
         }
 
-        $html = "<ul>\n";
+        $grouped = self::groupBySource($alerts);
+        $html = "";
 
-        foreach ($alerts as $alert) {
-            $emoji = self::SEVERITY_EMOJI[$alert->severity] ?? "";
-            
-            $headline = htmlspecialchars(
-                $alert->headline ?: $alert->description,
+        foreach ($grouped as $source => $sourceAlerts) {
+            $label = htmlspecialchars(
+                self::SOURCE_LABELS[$source] ?? strtoupper($source),
                 ENT_QUOTES,
                 'UTF-8'
             );
+            $html .= "<h3>{$label}</h3>\n<ul>\n";
 
-            $html .= sprintf(
-                "<li>%s <strong>%s</strong></li>\n",
-                $emoji,
-                $headline
-            );
+            foreach ($sourceAlerts as $alert) {
+                $emoji = self::SEVERITY_EMOJI[$alert->severity] ?? "";
+                $headline = htmlspecialchars(
+                    $alert->headline ?: $alert->description,
+                    ENT_QUOTES,
+                    'UTF-8'
+                );
+                $html .= sprintf(
+                    "<li>%s <strong>%s</strong></li>\n",
+                    $emoji,
+                    $headline
+                );
+            }
+
+            $html .= "</ul>\n";
         }
 
-        $html .= "</ul>";
         return $html;
     }
 
