@@ -4,7 +4,7 @@ Agregador de alertas de emergencias que recopila datos de múltiples fuentes ofi
 
 ## Características
 
-✅ **Sin dependencias externas** - Usa solo PHP 7.4+  
+✅ **Sin dependencias externas** - Usa solo PHP 7.4+  test
 ✅ **Ultraligero** - HTML mínimo, sin JavaScript  
 ✅ **Múltiples fuentes** - AEMET (meteorología), IGN (sísmica)  
 ✅ **API REST** - Acceso a alertas en JSON  
