@@ -110,7 +110,8 @@ class AEMETSource {
     private static function extractTarGz(string $data): array {
         // Validate that data is actually gzip format
         if (!self::isGzipData($data)) {
-            $preview = substr($data, 0, 200);
+            // Use mb_substr for safe UTF-8 handling to avoid truncating multi-byte characters
+            $preview = mb_substr($data, 0, 200, 'UTF-8');
             // Note: Logging response preview for diagnostics. Data is from AEMET public API.
             // If response could contain sensitive data, implement sanitization here.
             error_log("[AEMET] Data is not in gzip format. First 200 chars: " . $preview);
