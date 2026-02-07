@@ -37,7 +37,7 @@ class AEMETSource {
                     "User-Agent: AUXIO/1.0",
                 ]),
                 'timeout' => 30,
-                'ignore_errors' => true, // Permite capturar respuestas de error HTTP
+                'ignore_errors' => true, // Allow capturing HTTP error responses
             ]
         ]);
 
@@ -299,7 +299,7 @@ class AEMETSource {
             // 1. Verificar si es JSON (posible error del API)
             if (str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[')) {
                 $jsonData = json_decode($rawData, true);
-                if (json_last_error() === JSON_ERROR_NONE) {
+                if (json_last_error() === JSON_ERROR_NONE && is_array($jsonData)) {
                     // Es una respuesta JSON, probablemente un error
                     $errorMsg = $jsonData['descripcion'] ?? $jsonData['mensaje'] ?? 'Unknown JSON response';
                     echo "[aemet] API returned JSON response: {$errorMsg}\n";
@@ -319,7 +319,7 @@ class AEMETSource {
                 echo "[aemet] Response is not in gzip format. First bytes: " . bin2hex($magicBytes) . "\n";
                 // Intentar mostrar más información si parece ser texto
                 if (ctype_print(substr($rawData, 0, 100))) {
-                    echo "[aemet] Response preview: " . substr($rawData, 0, 200) . "\n";
+                    echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
                 }
                 return [];
             }
