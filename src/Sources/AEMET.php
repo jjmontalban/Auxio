@@ -75,31 +75,28 @@ class AEMETSource {
     }
 
     /**
-     * Extraer archivos XML de un archivo tar.gz
+     * Extraer archivos XML de un archivo tar (comprimido o no)
      */
-    private static function extractTarGz(string $data): array {
+    private static function extractTar(string $data, bool $gzipped): array {
         $xmlFiles = [];
         $tmpFile = tempnam(sys_get_temp_dir(), 'aemet_');
         $tmpDir = $tmpFile . '_dir';
 
         try {
-            // Validar que el archivo es gzip antes de intentar extraer
-            if (strlen($data) < 2 || substr($data, 0, 2) !== "\x1f\x8b") {
-                throw new Exception("Data is not in gzip format");
-            }
-
             file_put_contents($tmpFile, $data);
             mkdir($tmpDir, 0755, true);
 
+            $tarFlag = $gzipped ? '-xzf' : '-xf';
             $cmd = sprintf(
-                'tar -xzf %s -C %s 2>&1',
+                'tar %s %s -C %s 2>&1',
+                $tarFlag,
                 escapeshellarg($tmpFile),
                 escapeshellarg($tmpDir)
             );
             exec($cmd, $output, $returnCode);
 
             if ($returnCode !== 0) {
-                throw new Exception("Failed to extract tar.gz: " . implode(" ", $output));
+                throw new Exception("Failed to extract tar archive: " . implode(" ", $output));
             }
 
             $iterator = new RecursiveIteratorIterator(
@@ -295,7 +292,7 @@ class AEMETSource {
 
             // Detectar formato de respuesta
             $trimmed = ltrim($rawData);
-            
+
             // 1. Verificar si es JSON (posible error del API)
             if (str_starts_with($trimmed, '{') || str_starts_with($trimmed, '[')) {
                 $jsonData = json_decode($rawData, true);
@@ -306,35 +303,17 @@ class AEMETSource {
                     return [];
                 }
             }
-            
-            // 2. Verificar respuesta no comprimida de AEMET (sin datos disponibles)
-            // La API de AEMET devuelve respuestas que empiezan con "Z_" (ej: "Z_CAP_C_AEMET...")
-            // cuando no hay datos de avisos disponibles. Estas respuestas no son archivos tar.gz.
-            if (str_starts_with($trimmed, 'Z_')) {
-                echo "[aemet] API returned a non-compressed response (no data available)\n";
-                return [];
-            }
-            
-            // 3. Verificar si es XML directo
+
+            // 2. Verificar si es XML directo
             if (str_starts_with($trimmed, '<?xml') || str_starts_with($trimmed, '<')) {
                 return self::parseCAP($rawData);
             }
 
-            // 4. Verificar si es realmente un archivo gzip usando magic bytes
-            $magicBytes = substr($rawData, 0, 2);
-            if ($magicBytes !== "\x1f\x8b") {
-                // No es un archivo gzip válido
-                echo "[aemet] Response is not in gzip format. First bytes: " . bin2hex($magicBytes) . "\n";
-                
-                // Intentar mostrar más información si parece ser texto
-                if (ctype_print(substr($rawData, 0, 100))) {
-                    echo "[aemet] Response preview: " . substr($rawData, 0, 100) . "\n";
-                }
-                return [];
-            }
-
-            // 5. Es un archivo tar.gz: extraer los XMLs individuales
-            $xmlFiles = self::extractTarGz($rawData);
+            // 3. Detectar formato de archivo tar (comprimido o sin comprimir)
+            // AEMET puede devolver tar.gz (magic bytes 1f 8b) o tar sin comprimir
+            // (empieza con el nombre del fichero, ej: "Z_CAP_C_LEMM_...")
+            $isGzip = (strlen($rawData) >= 2 && substr($rawData, 0, 2) === "\x1f\x8b");
+            $xmlFiles = self::extractTar($rawData, $isGzip);
 
             if (empty($xmlFiles)) {
                 echo "[aemet] No XML files found in archive.\n";
