@@ -132,10 +132,10 @@ small { color: #666; }
 </head>
 <body>
 
-<h1>AUXIO - Emergencias España</h1>
+<h1>Emergencias España</h1>
 
-<p><strong>Información crítica de emergencias. Optimizada para conexiones lentas.</strong></p>
-<p><em>Última actualización: $now</em></p>
+<p><strong>Información crítica de para conexiones lentas.</strong></p>
+<p><em>Fecha act: $now</em></p>
 
 <hr>
 
