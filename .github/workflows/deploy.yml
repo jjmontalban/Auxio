@@ -10,24 +10,24 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: í³¥ Checkout code
+      - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: í´‘ Setup SSH
+      - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
       
-      - name: í´’ Add host to known_hosts
+      - name: Add host to known_hosts
         run: |
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
       
-      - name: íº€ Deploy to VPS
+      - name: Deploy to VPS
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
             cd ${{ secrets.DEPLOY_PATH }}
             git fetch origin prod
             git reset --hard origin/prod
             php generate.php
-            echo "âœ… Deployment completed at $(date)"
+            echo "Deployment completed at $(date)"
           ENDSSH
