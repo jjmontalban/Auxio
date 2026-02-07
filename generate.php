@@ -45,6 +45,12 @@ try {
         }
     }
     
+    // Resolver el directorio antes de intentar escribir para mensajes de error precisos
+    $resolvedDir = $outputDir === '.' ? getcwd() : realpath($outputDir);
+    if ($resolvedDir === false) {
+        $resolvedDir = $outputDir; // Fallback al path original
+    }
+    
     // Intentar guardar la página
     $bytesWritten = @file_put_contents($output, $html);
     if ($bytesWritten === false) {
@@ -52,14 +58,7 @@ try {
         $error = error_get_last();
         $errorMsg = $error ? $error['message'] : 'Unknown error';
         
-        // Intentar determinar el directorio para un mensaje de error más útil
-        $resolvedDir = $outputDir === '.' ? getcwd() : realpath($outputDir);
-        
-        // Si el directorio no se puede resolver, usar el path original
-        if ($resolvedDir === false) {
-            $resolvedDir = $outputDir;
-        }
-        
+        // Usar el directorio resuelto previamente
         if (!is_writable($resolvedDir)) {
             throw new Exception("Cannot write to {$output}: directory '{$resolvedDir}' is not writable");
         }
