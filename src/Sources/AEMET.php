@@ -275,10 +275,26 @@ class AEMETSource {
      * agrupa y une las áreas en una sola alerta.
      */
     private static function deduplicateAlerts(array $alerts): array {
+        // Filtrar alertas de nivel verde (sin riesgo significativo)
+        $alerts = array_filter($alerts, fn(Alert $a) => $a->severity !== 'green');
+
         $grouped = [];
         foreach ($alerts as $alert) {
             // Limpiar headline: quitar ". CCAA" genérico (Comunidades Autónomas)
             $alert->headline = preg_replace('/\.\s*CCAA\s*$/u', '', $alert->headline);
+
+            // Quitar sufijo de zona del headline (ej: ". Costa - Noroeste de A Coruña")
+            // AEMET incluye la zona en el headline, pero ya se muestra aparte en el campo area
+            if ($alert->area) {
+                $areas = array_map('trim', explode('; ', $alert->area));
+                foreach ($areas as $areaDesc) {
+                    $suffix = '. ' . $areaDesc;
+                    if (str_ends_with($alert->headline, $suffix)) {
+                        $alert->headline = substr($alert->headline, 0, -strlen($suffix));
+                        break;
+                    }
+                }
+            }
 
             $key = $alert->severity . '|' . $alert->headline . '|' . ($alert->onset ?? '') . '|' . ($alert->expires ?? '');
             if (!isset($grouped[$key])) {
