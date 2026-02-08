@@ -31,6 +31,62 @@ class AlertGenerator {
         "aemet" => "Meteorología (AEMET)",
     ];
 
+    /** Palabras clave para mapear zonas de alerta a provincias */
+    private const PROVINCE_KEYWORDS = [
+        'A Coruña' => ['Coruña'],
+        'Álava' => ['Álava', 'Araba'],
+        'Albacete' => ['Albacete'],
+        'Alicante' => ['Alicante', 'Alacant'],
+        'Almería' => ['Almería'],
+        'Asturias' => ['Asturias'],
+        'Ávila' => ['Ávila'],
+        'Badajoz' => ['Badajoz'],
+        'Barcelona' => ['Barcelona'],
+        'Bizkaia' => ['Bizkaia', 'Vizcaya'],
+        'Burgos' => ['Burgos'],
+        'Cáceres' => ['Cáceres'],
+        'Cádiz' => ['Cádiz'],
+        'Cantabria' => ['Cantabria'],
+        'Castellón' => ['Castellón', 'Castelló'],
+        'Ceuta' => ['Ceuta'],
+        'Ciudad Real' => ['Ciudad Real'],
+        'Córdoba' => ['Córdoba'],
+        'Cuenca' => ['Cuenca'],
+        'Gipuzkoa' => ['Gipuzkoa', 'Guipúzcoa'],
+        'Girona' => ['Girona', 'Gerona'],
+        'Granada' => ['Granada'],
+        'Guadalajara' => ['Guadalajara'],
+        'Huelva' => ['Huelva'],
+        'Huesca' => ['Huesca', 'oscense'],
+        'Illes Balears' => ['Balears', 'Baleares', 'Mallorca', 'Menorca', 'Ibiza', 'Eivissa', 'Formentera'],
+        'Jaén' => ['Jaén'],
+        'León' => ['León'],
+        'Lleida' => ['Lleida', 'Lérida'],
+        'Lugo' => ['Lugo'],
+        'Madrid' => ['Madrid'],
+        'Málaga' => ['Málaga'],
+        'Melilla' => ['Melilla'],
+        'Murcia' => ['Murcia'],
+        'Navarra' => ['Navarra', 'Nafarroa'],
+        'Ourense' => ['Ourense', 'Orense'],
+        'Palencia' => ['Palencia'],
+        'Las Palmas' => ['Las Palmas', 'Gran Canaria', 'Lanzarote', 'Fuerteventura'],
+        'Pontevedra' => ['Pontevedra'],
+        'La Rioja' => ['Rioja'],
+        'Salamanca' => ['Salamanca'],
+        'S.C. Tenerife' => ['Tenerife', 'La Palma', 'La Gomera', 'El Hierro'],
+        'Segovia' => ['Segovia'],
+        'Sevilla' => ['Sevilla'],
+        'Soria' => ['Soria'],
+        'Tarragona' => ['Tarragona'],
+        'Teruel' => ['Teruel'],
+        'Toledo' => ['Toledo'],
+        'Valencia' => ['Valencia', 'València'],
+        'Valladolid' => ['Valladolid'],
+        'Zamora' => ['Zamora'],
+        'Zaragoza' => ['Zaragoza'],
+    ];
+
     /**
      * Recopilar alertas de todas las fuentes
      */
@@ -76,6 +132,57 @@ class AlertGenerator {
     }
 
     /**
+     * Extraer provincias de un texto de área mediante palabras clave
+     */
+    public static function extractProvinces(string $area): array {
+        $matched = [];
+        foreach (self::PROVINCE_KEYWORDS as $province => $keywords) {
+            foreach ($keywords as $keyword) {
+                if (mb_stripos($area, $keyword) !== false) {
+                    $matched[] = $province;
+                    break;
+                }
+            }
+        }
+        return array_unique($matched);
+    }
+
+    /**
+     * Generar filtro de provincias a partir de las alertas
+     */
+    public static function renderProvinceFilter(array $alerts): string {
+        if (empty($alerts)) {
+            return '';
+        }
+
+        $allProvinces = [];
+        foreach ($alerts as $alert) {
+            if ($alert->area) {
+                foreach (self::extractProvinces($alert->area) as $prov) {
+                    $allProvinces[$prov] = true;
+                }
+            }
+        }
+
+        if (empty($allProvinces)) {
+            return '';
+        }
+
+        ksort($allProvinces);
+
+        $html = "<div class=\"prov-filter\">\n<strong>Filtrar por provincia:</strong><br>\n";
+        $html .= "<a href=\"#\" onclick=\"fp('');return false\" data-prov=\"\" style=\"font-weight:bold\">Todas</a>";
+
+        foreach (array_keys($allProvinces) as $prov) {
+            $provSafe = htmlspecialchars($prov, ENT_QUOTES, 'UTF-8');
+            $html .= " | <a href=\"#\" onclick=\"fp('{$provSafe}');return false\" data-prov=\"{$provSafe}\">{$provSafe}</a>";
+        }
+
+        $html .= "\n</div>\n";
+        return $html;
+    }
+
+    /**
      * Renderizar sección de alertas como HTML, agrupadas por fuente
      */
     public static function renderAlertsSection(array $alerts): string {
@@ -95,7 +202,7 @@ HTML;
                 ENT_QUOTES,
                 'UTF-8'
             );
-            $html .= "<h3>{$label}</h3>\n<ul>\n";
+            $html .= "<div class=\"src-group\">\n<h3>{$label}</h3>\n<ul>\n";
 
             foreach ($sourceAlerts as $alert) {
                 $emoji = self::SEVERITY_EMOJI[$alert->severity] ?? "";
@@ -104,14 +211,28 @@ HTML;
                     ENT_QUOTES,
                     'UTF-8'
                 );
+
+                // Provincias para el filtro
+                $provinces = $alert->area ? self::extractProvinces($alert->area) : [];
+                $provAttr = htmlspecialchars(implode(',', $provinces), ENT_QUOTES, 'UTF-8');
+
+                // Mostrar zona afectada
+                $areaHtml = '';
+                if ($alert->area) {
+                    $areaText = htmlspecialchars($alert->area, ENT_QUOTES, 'UTF-8');
+                    $areaHtml = "<br><small>Zona: {$areaText}</small>";
+                }
+
                 $html .= sprintf(
-                    "<li>%s <strong>%s</strong></li>\n",
+                    "<li class=\"al\" data-provinces=\"%s\">%s <strong>%s</strong>%s</li>\n",
+                    $provAttr,
                     $emoji,
-                    $headline
+                    $headline,
+                    $areaHtml
                 );
             }
 
-            $html .= "</ul>\n";
+            $html .= "</ul>\n</div>\n";
         }
 
         return $html;
@@ -122,6 +243,7 @@ HTML;
      */
     public static function renderHTML(array $alerts): string {
         $now = date('Y-m-d H:i') . ' UTC';
+        $filterHtml = self::renderProvinceFilter($alerts);
         $alertsHtml = self::renderAlertsSection($alerts);
 
         return <<<HTML
@@ -139,19 +261,22 @@ hr { border: none; border-top: 1px solid #ddd; margin: 20px 0; }
 ul { padding-left: 20px; }
 a { color: #0066cc; }
 small { color: #666; }
+.prov-filter { margin: 10px 0; padding: 10px; background: #f5f5f5; border-radius: 4px; line-height: 2; }
+.prov-filter a { white-space: nowrap; }
 </style>
 </head>
 <body>
 
 <h1>Emergencias España</h1>
 
-<p><strong>Información crítica de para conexiones lentas.</strong></p>
+<p><strong>Información crítica para conexiones lentas.</strong></p>
 <p><em>Fecha act: $now</em></p>
 
 <hr>
 
 <h2>ALERTAS Y AVISOS ACTIVOS</h2>
 
+$filterHtml
 $alertsHtml
 
 <p><strong>Consulta las alertas oficiales en tiempo real:</strong></p>
@@ -238,6 +363,29 @@ $alertsHtml
 <hr>
 
 <p><small>AUXIO - Proyecto de código abierto. No sustituye los servicios oficiales de emergencia. En caso de emergencia, llama al <strong>112</strong>.</small></p>
+
+<script>
+function fp(prov) {
+    var items = document.querySelectorAll('.al');
+    for (var i = 0; i < items.length; i++) {
+        var p = ',' + items[i].getAttribute('data-provinces') + ',';
+        items[i].style.display = (!prov || p.indexOf(',' + prov + ',') >= 0) ? '' : 'none';
+    }
+    var groups = document.querySelectorAll('.src-group');
+    for (var i = 0; i < groups.length; i++) {
+        var els = groups[i].querySelectorAll('.al');
+        var any = false;
+        for (var j = 0; j < els.length; j++) {
+            if (els[j].style.display !== 'none') { any = true; break; }
+        }
+        groups[i].style.display = any ? '' : 'none';
+    }
+    var links = document.querySelectorAll('.prov-filter a');
+    for (var i = 0; i < links.length; i++) {
+        links[i].style.fontWeight = (links[i].getAttribute('data-prov') === (prov || '')) ? 'bold' : 'normal';
+    }
+}
+</script>
 
 </body>
 </html>

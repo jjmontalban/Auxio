@@ -268,6 +268,38 @@ class AEMETSource {
     }
 
     /**
+     * Deduplicar alertas: agrupar por headline+severity+vigencia, unir áreas
+     *
+     * AEMET genera un CAP XML por zona. Misma alerta (ej: "tormentas verde")
+     * aparece repetida docenas de veces con distinta zona. Este método las
+     * agrupa y une las áreas en una sola alerta.
+     */
+    private static function deduplicateAlerts(array $alerts): array {
+        $grouped = [];
+        foreach ($alerts as $alert) {
+            // Limpiar headline: quitar ". CCAA" genérico (Comunidades Autónomas)
+            $alert->headline = preg_replace('/\.\s*CCAA\s*$/u', '', $alert->headline);
+
+            $key = $alert->severity . '|' . $alert->headline . '|' . ($alert->onset ?? '') . '|' . ($alert->expires ?? '');
+            if (!isset($grouped[$key])) {
+                $grouped[$key] = $alert;
+            } else {
+                // Unir áreas
+                $existing = $grouped[$key];
+                if ($alert->area && $existing->area) {
+                    $existingAreas = array_map('trim', explode('; ', $existing->area));
+                    $newAreas = array_map('trim', explode('; ', $alert->area));
+                    $merged = array_unique(array_merge($existingAreas, $newAreas));
+                    $existing->area = implode('; ', $merged);
+                } elseif ($alert->area) {
+                    $existing->area = $alert->area;
+                }
+            }
+        }
+        return array_values($grouped);
+    }
+
+    /**
      * Fetch actualizado: obtener alertas de AEMET
      *
      * El endpoint datos devuelve un archivo tar.gz con múltiples
@@ -331,7 +363,7 @@ class AEMETSource {
                 }
             }
 
-            return $allAlerts;
+            return self::deduplicateAlerts($allAlerts);
         } catch (Exception $exc) {
             echo "[aemet] Error fetching alerts: {$exc->getMessage()}\n";
             return [];
