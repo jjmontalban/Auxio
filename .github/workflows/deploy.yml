@@ -25,11 +25,16 @@ jobs:
       - name: Deploy to VPS
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'ENDSSH'
+            # Actualizar repositorio Git
             cd ${{ secrets.DEPLOY_PATH }}
             git fetch origin prod
             git reset --hard origin/prod
-            # Ensure the directory has write permissions for the current user
-            chmod u+w .
+            
+            # Generar HTML
             php generate.php
+            
+            # Copiar a ubicación web
+            cp -r /var/www/vhosts/auxio/httpdocs/* /var/www/vhosts/default/auxio/
+            
             echo "Deployment completed at $(date)"
           ENDSSH
