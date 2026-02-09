@@ -86,17 +86,12 @@ class AEMETSource {
             file_put_contents($tmpFile, $data);
             mkdir($tmpDir, 0755, true);
 
-            $tarFlag = $gzipped ? '-xzf' : '-xf';
-            $cmd = sprintf(
-                'tar %s %s -C %s 2>&1',
-                $tarFlag,
-                escapeshellarg($tmpFile),
-                escapeshellarg($tmpDir)
-            );
-            exec($cmd, $output, $returnCode);
-
-            if ($returnCode !== 0) {
-                throw new Exception("Failed to extract tar archive: " . implode(" ", $output));
+            // Use PharData for cross-platform tar extraction (works on Windows too)
+            try {
+                $phar = new PharData($tmpFile);
+                $phar->extractTo($tmpDir);
+            } catch (Exception $e) {
+                throw new Exception("Failed to extract tar archive: " . $e->getMessage());
             }
 
             $iterator = new RecursiveIteratorIterator(
